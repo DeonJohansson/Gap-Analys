@@ -140,10 +140,12 @@ def chosen_settings():
 # --------------------------------------------------------------------------- #
 qp = st.query_params
 if "code" in qp or "error" in qp:
+    # Felet sparas i databasen så att det syns efter omladdningen (även i en annan flik)
     if "error" in qp:
-        st.error(f"Fortnox avbröt kopplingen: {qp.get('error_description') or qp.get('error')}")
+        D.meta_set("oauth_error", f"Fortnox svarade: {qp.get('error')}"
+                   + (f" – {qp.get('error_description')}" if qp.get("error_description") else ""))
     elif qp.get("state") != (D.meta_get("oauth_state") or "#"):
-        st.error("Svaret från Fortnox kunde inte verifieras. Klicka på 'Koppla Fortnox' igen.")
+        D.meta_set("oauth_error", "Svaret från Fortnox hörde till ett äldre försök. Klicka på 'Koppla Fortnox' igen.")
     else:
         try:
             with st.spinner("Slutför kopplingen till Fortnox …"):
@@ -152,10 +154,10 @@ if "code" in qp or "error" in qp:
             if name:
                 D.meta_set("company", name)
             D.meta_set("oauth_state", "")
+            D.meta_set("oauth_error", "")
             st.session_state.flash = f"Kopplat till Fortnox{': ' + name if name else ''}!"
         except Exception as e:
-            st.error(f"Kopplingen misslyckades: {e}")
-            st.stop()
+            D.meta_set("oauth_error", f"Kopplingen misslyckades: {e}")
     st.query_params.clear()
     st.rerun()
 
@@ -200,6 +202,19 @@ def step2_connect(s):
     if not app_url():
         st.warning("Appens adress saknas – fyll i den i steg 1.")
         return
+    err = D.meta_get("oauth_error") or ""
+    if err:
+        st.error(err)
+        low = err.lower()
+        if "redirect" in low:
+            st.info(f"Kontrollera att Redirect URI i Fortnox Developer Portal är exakt **{app_url()}** "
+                    "(utan snedstreck på slutet).")
+        elif "scope" in low:
+            st.info(f"Kontrollera att integrationen i Fortnox har behörigheterna: {SCOPE_TEXT}.")
+        elif "access_denied" in low or "denied" in low:
+            st.info("Kopplingen nekades. Den som godkänner måste vara systemadministratör i Fortnox.")
+        elif "invalid_client" in low or "401" in low:
+            st.info("Client ID eller Client Secret stämmer inte – kontrollera dem i appens Secrets.")
     st.link_button("Koppla Fortnox", fc.auth_url(s, app_url(), state), type="primary")
     st.caption(f"Redirect URI i Fortnox måste vara exakt: {app_url()}")
 
