@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAP-analys kunder</title>
+<style>
+:root{
+  --bg:#f6f5f2; --panel:#ffffff; --ink:#1d1d1b; --muted:#6b6a66; --line:#e4e2dc;
+  --accent:#1f5f4a; --accent-soft:#e3efe9;
+  --heat:31,95,74;
+  --lost:#b3402a; --lost-soft:#f8e3de;
+  --down:#a86a00; --down-soft:#fbefd6;
+  --never:#9a9893; --never-bg:repeating-linear-gradient(135deg,#f3f2ee 0 6px,#ebe9e4 6px 12px);
+  --new:#2c64b5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151614; --panel:#1e1f1d; --ink:#ecebe7; --muted:#a3a19b; --line:#33342f;
+    --accent:#7cc7a8; --accent-soft:#22332c; --heat:124,199,168;
+    --lost:#f0937f; --lost-soft:#3a2420; --down:#e6b450; --down-soft:#3a3020;
+    --never:#7d7b75; --never-bg:repeating-linear-gradient(135deg,#232421 0 6px,#1e1f1c 6px 12px);
+    --new:#8ab4f0;
+  }
+}
+:root[data-theme="dark"]{
+    --bg:#151614; --panel:#1e1f1d; --ink:#ecebe7; --muted:#a3a19b; --line:#33342f;
+    --accent:#7cc7a8; --accent-soft:#22332c; --heat:124,199,168;
+    --lost:#f0937f; --lost-soft:#3a2420; --down:#e6b450; --down-soft:#3a3020;
+    --never:#7d7b75; --never-bg:repeating-linear-gradient(135deg,#232421 0 6px,#1e1f1c 6px 12px);
+    --new:#8ab4f0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+.wrap{max-width:1500px;margin:0 auto;padding:24px 16px 60px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:18px}
+h1{font-size:24px;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.kpi .v{font-size:24px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:12px;color:var(--muted);margin-top:2px}
+.up{color:var(--accent)} .dn{color:var(--lost)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:6px 11px;font:inherit;cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--panel)}
+select,input[type=search]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
+input[type=search]{min-width:200px}
+label.chk{display:inline-flex;gap:6px;align-items:center;color:var(--muted);font-size:13px}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 11px;font:inherit;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.tabs{display:flex;gap:4px;margin:6px 0 10px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:8px 12px;border-bottom:2px solid transparent;cursor:pointer}
+.tabs button.on{color:var(--ink);border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin:0 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid var(--line)}
+.tablebox{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:72vh}
+table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}
+thead th{position:sticky;top:0;background:var(--panel);z-index:2;font-size:12px;color:var(--muted);font-weight:600;cursor:pointer;vertical-align:bottom}
+thead th.cat{max-width:120px;white-space:normal;text-align:center;line-height:1.2}
+th.name,td.name{position:sticky;left:0;background:var(--panel);text-align:left;z-index:1;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+thead th.name{z-index:3}
+td.name small{color:var(--muted);display:block;font-size:11px}
+td.tot{font-weight:600;border-right:1px solid var(--line)}
+td.c{min-width:92px;cursor:pointer;font-size:13px;position:relative}
+td.c:hover{outline:2px solid var(--accent);outline-offset:-2px}
+td.c .t{display:block;font-size:10.5px;line-height:1.1;margin-top:1px}
+td.never{background:var(--never-bg);color:var(--never)}
+td.lost{background:var(--lost-soft);color:var(--lost)}
+td.lost .t{color:var(--lost)}
+td.down .t{color:var(--down)}
+td.new .t{color:var(--new)}
+td.grow .t{color:var(--accent)}
+th.l,td.l{text-align:left}
+.pill{display:inline-block;border-radius:99px;padding:1px 8px;font-size:11.5px;font-weight:600}
+.p-lost{background:var(--lost-soft);color:var(--lost)}
+.p-never{background:var(--bg);color:var(--never);border:1px solid var(--line)}
+.p-down{background:var(--down-soft);color:var(--down)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+/* drawer */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:10}
+.ov.on{display:block}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(520px,100%);background:var(--panel);border-left:1px solid var(--line);z-index:11;transform:translateX(100%);transition:transform .2s;overflow:auto;padding:20px}
+.drawer.on{transform:none}
+.drawer h2{margin:0 0 2px;font-size:18px}
+.drawer .x{float:right}
+.ybars{display:flex;gap:10px;align-items:flex-end;height:150px;margin:18px 0 6px;border-bottom:1px solid var(--line)}
+.ybars div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11.5px;color:var(--muted)}
+.ybars i{display:block;width:70%;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px}
+.ybars i.cur{background:rgb(var(--heat))}
+.ylab{display:flex;gap:10px}
+.ylab div{flex:1;text-align:center;font-size:12px;color:var(--muted)}
+.drawer table{width:100%;min-width:0;font-size:12.5px}
+.drawer th{position:static;font-size:11px}
+.drawer td.l{white-space:normal}
+@media (max-width:640px){ input[type=search]{min-width:0;width:100%} .kpi .v{font-size:20px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>GAP-analys – köp per produktkategori</h1>
+      <div class="sub" id="sub"></div>
+    </div>
+    <div class="sub" id="gen"></div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="bar">
+    <span class="sub">Period</span>
+    <div class="seg" id="mode">
+      <button data-v="ytd" class="on" title="1 jan till och med dagens datum, varje år">Samma period</button>
+      <button data-v="full">Hela året</button>
+    </div>
+    <select id="year" aria-label="År"></select>
+    <input type="search" id="q" placeholder="Sök kund eller kundnummer">
+    <select id="filter" aria-label="Filter">
+      <option value="all">Alla kunder</option>
+      <option value="gap">Kunder med gap</option>
+      <option value="lost">Kunder med tappade kategorier</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="hideEmpty"> Dölj kunder utan köp</label>
+    <label class="chk"><input type="checkbox" id="showInactive"> Visa inaktiva</label>
+    <span class="spacer"></span>
+    <button class="btn" id="csv">Exportera CSV</button>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button data-t="matrix" class="on">Matris</button>
+    <button data-t="gaps">Gap-lista</button>
+    <button data-t="cats">Kategorier</button>
+  </nav>
+
+  <div class="legend" id="legend">
+    <span><i class="sw" style="background:rgba(var(--heat),.55)"></i>Köpt (mörkare = mer)</span>
+    <span><i class="sw" style="background:var(--lost-soft)"></i>Tappad – köpte tidigare, inget i år</span>
+    <span><i class="sw" style="background:var(--never-bg)"></i>Aldrig köpt under perioden</span>
+    <span style="color:var(--down)">↓ minskar mer än 30 %</span>
+    <span style="color:var(--new)">Ny i år</span>
+  </div>
+
+  <div class="tablebox" id="view"></div>
+  <div class="note" id="note"></div>
+</div>
+
+<div class="ov" id="ov"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+
+<script>
+const D = /*__DATA__*/null;
+const LIVE = /*__LIVE__*/false;
+
+const nf = new Intl.NumberFormat('sv-SE',{maximumFractionDigits:0});
+const kr = v => nf.format(Math.round(v)) + ' kr';
+const short = v => {
+  const a = Math.abs(v);
+  if (a >= 1e6) return (v/1e6).toLocaleString('sv-SE',{maximumFractionDigits:1}) + ' mkr';
+  if (a >= 1e4) return (v/1e3).toLocaleString('sv-SE',{maximumFractionDigits:0}) + ' tkr';
+  if (a >= 1e3) return (v/1e3).toLocaleString('sv-SE',{maximumFractionDigits:1}) + ' tkr';
+  return nf.format(Math.round(v)) + ' kr';
+};
+const pct = (a,b) => b > 0 ? Math.round((a-b)/b*100) : null;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const Y = D.years, NY = Y.length, NC = D.customers.length, NK = D.categories.length;
+// V[mode][cust][cat] = array per year
+const V = {full:[], ytd:[]};
+for (const m of ['full','ytd']) for (let c=0;c<NC;c++){ V[m].push(Array.from({length:NK},()=>new Float64Array(NY))); }
+for (const [c,k,y,f,t] of D.cells){ V.full[c][k][y]=f; V.ytd[c][k][y]=t; }
+const AV = new Map(); // "c|k" -> [[artIdx, yearIdx, full, ytd]]
+for (const [c,a,y,f,t] of D.artCells){ const k=D.articles[a][3]; const key=c+'|'+k; if(!AV.has(key)) AV.set(key,[]); AV.get(key).push([a,y,f,t]); }
+
+const S = { mode:'ytd', yi:NY-1, q:'', filter:'all', hideEmpty:false, showInactive:false, tab:'matrix', sort:{col:'tot',dir:-1} };
+
+function status(arr, yi){
+  const v = arr[yi], prev = arr.slice(0, yi), p1 = yi>0 ? arr[yi-1] : 0;
+  const everBefore = prev.some(x => x > 0);
+  if (v <= 0) return everBefore ? 'lost' : 'never';
+  if (!everBefore) return 'new';
+  if (p1 > 0 && v < p1*0.7) return 'down';
+  if (p1 > 0 && v > p1*1.15) return 'grow';
+  return 'ok';
+}
+
+function custRows(){
+  const m = V[S.mode], yi = S.yi, q = S.q.trim().toLowerCase();
+  const rows = [];
+  for (let c=0;c<NC;c++){
+    const [nr,name,city,active] = D.customers[c];
+    if (!active && !S.showInactive) continue;
+    if (q && !(name.toLowerCase().includes(q) || String(nr).toLowerCase().includes(q))) continue;
+    let tot=0, prevTot=0, any=false, gaps=0, lost=0, lostVal=0;
+    const st = new Array(NK);
+    for (let k=0;k<NK;k++){
+      const a = m[c][k]; tot += a[yi]; if (yi>0) prevTot += a[yi-1];
+      if (a.some(x=>x>0)) any = true;
+      st[k] = status(a, yi);
+      if (st[k]==='never'||st[k]==='lost') gaps++;
+      if (st[k]==='lost'){ lost++; lostVal += Math.max(...Array.from(a.slice(0,yi))); }
+    }
+    if (S.hideEmpty && !any) continue;
+    if (S.filter==='gap' && !gaps) continue;
+    if (S.filter==='lost' && !lost) continue;
+    rows.push({c,nr,name,city,tot,prevTot,gaps,lost,lostVal,st});
+  }
+  const {col,dir} = S.sort;
+  rows.sort((a,b)=>{
+    let x,y;
+    if (col==='name'){ x=a.name.toLowerCase(); y=b.name.toLowerCase(); return x<y?-dir:x>y?dir:0; }
+    if (col==='tot'){ x=a.tot; y=b.tot; }
+    else if (col==='gaps'){ x=a.gaps; y=b.gaps; }
+    else { x=m[a.c][col][S.yi]; y=m[b.c][col][S.yi]; }
+    return (x-y)*dir;
+  });
+  return rows;
+}
+
+function renderKpis(){
+  const m=V[S.mode], yi=S.yi;
+  let tot=0, prev=0, buyers=0, lostCnt=0, lostVal=0, catSum=0;
+  for (let c=0;c<NC;c++){
+    if (!D.customers[c][3] && !S.showInactive) continue;
+    let ct=0, cats=0;
+    for (let k=0;k<NK;k++){ const a=m[c][k]; ct+=a[yi]; if(yi>0) prev+=a[yi-1]; if(a[yi]>0) cats++;
+      if (status(a,yi)==='lost'){ lostCnt++; lostVal += yi>0 ? a[yi-1] : 0; } }
+    tot+=ct; if (ct>0){ buyers++; catSum+=cats; }
+  }
+  const d = pct(tot, prev), yr = Y[yi], per = S.mode==='ytd' ? 'jan–'+D.today.slice(5).split('-').reverse().map(Number).join('/') : 'helår';
+  const k = (l,v,dd)=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${dd}</div></div>`;
+  document.getElementById('kpis').innerHTML =
+    k(`Försäljning ${yr} (${per})`, short(tot), d===null?'–':`<span class="${d>=0?'up':'dn'}">${d>=0?'+':''}${d} %</span> mot ${Y[yi-1]??''}`) +
+    k('Köpande kunder', nf.format(buyers), `${nf.format(catSum && buyers ? catSum/buyers : 0)} av ${NK} kategorier i snitt`) +
+    k('Tappade kategorier', nf.format(lostCnt), `${short(lostVal)} köptes i dessa ${Y[yi-1]??''}`) +
+    k('Kategoritäckning', (buyers? Math.round(catSum/(buyers*NK)*100):0)+' %', 'andel möjliga kund×kategori med köp');
+}
+
+function heat(v,max){ if(v<=0||max<=0) return ''; const a = .08 + .62*Math.sqrt(v/max); return `background:rgba(var(--heat),${a.toFixed(3)});${a>.45?'color:var(--panel)':''}`; }
+
+function renderMatrix(){
+  const rows = custRows(), m=V[S.mode], yi=S.yi;
+  if (!rows.length) return `<div class="empty">Inga kunder matchar.</div>`;
+  let max=0; for (const r of rows) for (let k=0;k<NK;k++) max=Math.max(max,m[r.c][k][yi]);
+  const ar = col => S.sort.col===col ? (S.sort.dir<0?' ↓':' ↑') : '';
+  let h = `<table><thead><tr><th class="name" data-s="name">Kund${ar('name')}</th><th data-s="tot">Totalt ${Y[yi]}${ar('tot')}</th><th data-s="gaps">Gap${ar('gaps')}</th>`;
+  D.categories.forEach((n,k)=> h += `<th class="cat" data-s="${k}" title="${esc(n)}">${esc(n)}${ar(k)}</th>`);
+  h += `</tr></thead><tbody>`;
+  for (const r of rows){
+    const d = pct(r.tot, r.prevTot);
+    h += `<tr><td class="name" title="${esc(r.name)}">${esc(r.name)}<small>${esc(r.nr)}${r.city?' · '+esc(r.city):''}</small></td>`;
+    h += `<td class="tot">${r.tot? short(r.tot):'–'}${d!==null?`<span class="t ${d>=0?'up':'dn'}" style="display:block;font-size:10.5px;font-weight:400">${d>=0?'+':''}${d} %</span>`:''}</td>`;
+    h += `<td>${r.gaps}</td>`;
+    for (let k=0;k<NK;k++){
+      const a=m[r.c][k], v=a[yi], st=r.st[k];
+      let tag='';
+      if (st==='lost') tag = `Tappad (${short(Math.max(...Array.from(a.slice(0,yi))))})`;
+      else if (st==='down') tag = `↓ ${pct(v,a[yi-1])} %`;
+      else if (st==='new') tag = 'Ny';
+      else if (st==='grow') tag = `↑ ${pct(v,a[yi-1])} %`;
+      const style = (st==='lost'||st==='never') ? '' : heat(v,max);
+      h += `<td class="c ${st}" data-c="${r.c}" data-k="${k}" style="${style}">${v>0?short(v):'–'}${tag?`<span class="t">${tag}</span>`:''}</td>`;
+    }
+    h += `</tr>`;
+  }
+  return h + `</tbody></table>`;
+}
+
+function gapRows(){
+  const m=V[S.mode], yi=S.yi, out=[];
+  for (const r of custRows()) for (let k=0;k<NK;k++){
+    const st=r.st[k]; if (st!=='lost'&&st!=='never'&&st!=='down') continue;
+    const a=m[r.c][k]; const prev=Array.from(a.slice(0,yi)); const avg = prev.length? prev.reduce((s,x)=>s+x,0)/prev.length : 0;
+    out.push({r,k,st,cur:a[yi],p1:yi>0?a[yi-1]:0,avg,best:prev.length?Math.max(...prev):0});
+  }
+  const rank={lost:0,down:1,never:2};
+  out.sort((a,b)=> rank[a.st]-rank[b.st] || b.best-a.best || b.p1-a.p1 || a.r.name.localeCompare(b.r.name,'sv'));
+  return out;
+}
+
+function renderGaps(){
+  const g = gapRows(); if (!g.length) return `<div class="empty">Inga gap för valt urval.</div>`;
+  const lab={lost:['Tappad','p-lost'],down:['Minskar','p-down'],never:['Aldrig köpt','p-never']};
+  let h = `<table><thead><tr><th class="name">Kund</th><th class="l">Kategori</th><th class="l">Status</th><th>${Y[S.yi]}</th><th>${Y[S.yi-1]??''}</th><th>Snitt tidigare år</th><th>Bästa år</th></tr></thead><tbody>`;
+  for (const x of g.slice(0,5000)){
+    h += `<tr><td class="name">${esc(x.r.name)}<small>${esc(x.r.nr)}</small></td><td class="l">${esc(D.categories[x.k])}</td><td class="l"><span class="pill ${lab[x.st][1]}">${lab[x.st][0]}</span></td>`+
+         `<td>${x.cur?short(x.cur):'–'}</td><td>${x.p1?short(x.p1):'–'}</td><td>${x.avg?short(x.avg):'–'}</td><td>${x.best?short(x.best):'–'}</td></tr>`;
+  }
+  return h + `</tbody></table>` + (g.length>5000?`<div class="empty">Visar 5 000 av ${nf.format(g.length)} rader – använd CSV-exporten för alla.</div>`:'');
+}
+
+function catRows(){
+  const m=V[S.mode], yi=S.yi, rows=custRows();
+  return D.categories.map((n,k)=>{
+    let tot=0,prev=0,buyers=0,lost=0,never=0;
+    for (const r of rows){ const a=m[r.c][k]; tot+=a[yi]; if(yi>0) prev+=a[yi-1]; if(a[yi]>0) buyers++; if(r.st[k]==='lost') lost++; if(r.st[k]==='never') never++; }
+    const active = rows.filter(r=>r.tot>0).length;
+    return {n,tot,prev,buyers,lost,never,pen: active? buyers/active:0};
+  }).sort((a,b)=>b.tot-a.tot);
+}
+
+function renderCats(){
+  const c=catRows();
+  let h = `<table><thead><tr><th class="name">Kategori</th><th>${Y[S.yi]}</th><th>Förändring</th><th>Köpande kunder</th><th>Penetration</th><th>Tappade kunder</th><th>Aldrig köpt</th></tr></thead><tbody>`;
+  for (const x of c){ const d=pct(x.tot,x.prev);
+    h += `<tr><td class="name">${esc(x.n)}</td><td>${short(x.tot)}</td><td class="${d===null?'':d>=0?'up':'dn'}">${d===null?'–':(d>=0?'+':'')+d+' %'}</td><td>${x.buyers}</td>`+
+         `<td>${Math.round(x.pen*100)} %</td><td>${x.lost}</td><td>${x.never}</td></tr>`; }
+  return h + `</tbody></table>`;
+}
+
+function render(){
+  renderKpis();
+  const v = document.getElementById('view');
+  v.innerHTML = S.tab==='matrix' ? renderMatrix() : S.tab==='gaps' ? renderGaps() : renderCats();
+  document.getElementById('legend').style.display = S.tab==='matrix' ? '' : 'none';
+  const cur = Y[S.yi]===Number(D.today.slice(0,4));
+  document.getElementById('note').textContent =
+    (S.mode==='full' && cur ? 'Obs: innevarande år är inte komplett – "Samma period" ger en rättvis jämförelse. ' : '') +
+    `Belopp exkl. moms i SEK, från kundfakturor (makulerade exkluderade, krediter avräknade). Kategori från artikelfältet "${D.categoryField}".` +
+    (D.skippedRows ? ` ${nf.format(D.skippedRows)} fakturarader utan artikelnummer ingår inte.` : '');
+}
+
+function openDrawer(c,k){
+  const [nr,name] = D.customers[c], m=V[S.mode], a=m[c][k], max=Math.max(...a,1);
+  let bars='',labs='';
+  Y.forEach((y,i)=>{ bars += `<div>${a[i]?short(a[i]):'–'}<i class="${i===S.yi?'cur':''}" style="height:${a[i]/max*100}%"></i></div>`; labs += `<div>${y}</div>`; });
+  const arts = (AV.get(c+'|'+k)||[]), by = new Map();
+  for (const [ai,yi,f,t] of arts){ if(!by.has(ai)) by.set(ai,new Float64Array(NY)); by.get(ai)[yi] += S.mode==='ytd'?t:f; }
+  const list=[...by.entries()].filter(e=>e[1].some(v=>v>0)).sort((x,y)=>y[1][S.yi]-x[1][S.yi] || y[1].reduce((s,v)=>s+v,0)-x[1].reduce((s,v)=>s+v,0));
+  let t = `<table><thead><tr><th class="l">Artikel</th><th class="l">EAN</th>${Y.map(y=>`<th>${y}</th>`).join('')}</tr></thead><tbody>`;
+  for (const [ai,vals] of list){ const [anr,desc,ean]=D.articles[ai];
+    t += `<tr><td class="l">${esc(desc||anr)}<br><small style="color:var(--muted)">${esc(anr)}</small></td><td class="l">${esc(ean)||'–'}</td>${Array.from(vals).map(v=>`<td>${v?short(v):'–'}</td>`).join('')}</tr>`; }
+  t += `</tbody></table>`;
+  const st = status(a,S.yi), lab={lost:'Tappad kategori',never:'Aldrig köpt',down:'Minskande',new:'Ny i år',grow:'Växande',ok:'Stabil'}[st];
+  const dr = document.getElementById('drawer');
+  dr.innerHTML = `<button class="btn x" id="close">Stäng</button><h2>${esc(name)}</h2><div class="sub">${esc(nr)} · ${esc(D.categories[k])} · <b>${lab}</b></div>`+
+    `<div class="ybars">${bars}</div><div class="ylab">${labs}</div>`+
+    `<p class="sub">${S.mode==='ytd'?'Samma period (1/1 – '+D.today.slice(5).split('-').reverse().map(Number).join('/')+') varje år':'Hela kalenderår'}</p>`+
+    (list.length? `<h3 style="font-size:14px;margin:18px 0 6px">Artiklar</h3>${t}` : `<p class="empty">Kunden har inte köpt något i denna kategori under perioden.</p>`);
+  dr.classList.add('on'); dr.setAttribute('aria-hidden','false'); document.getElementById('ov').classList.add('on');
+  document.getElementById('close').onclick = closeDrawer;
+}
+function closeDrawer(){ const dr=document.getElementById('drawer'); dr.classList.remove('on'); dr.setAttribute('aria-hidden','true'); document.getElementById('ov').classList.remove('on'); }
+
+function csv(){
+  const sep=';', q=s=>'"'+String(s).replace(/"/g,'""')+'"', m=V[S.mode], yi=S.yi; let lines=[];
+  if (S.tab==='gaps'){
+    lines.push(['Kundnr','Kund','Kategori','Status',Y[yi],Y[yi-1]??'','Snitt tidigare','Bästa år'].map(q).join(sep));
+    const lab={lost:'Tappad',down:'Minskar',never:'Aldrig köpt'};
+    for (const x of gapRows()) lines.push([x.r.nr,x.r.name,D.categories[x.k],lab[x.st],Math.round(x.cur),Math.round(x.p1),Math.round(x.avg),Math.round(x.best)].map(q).join(sep));
+  } else if (S.tab==='cats'){
+    lines.push(['Kategori',Y[yi],'Köpande kunder','Penetration %','Tappade','Aldrig köpt'].map(q).join(sep));
+    for (const x of catRows()) lines.push([x.n,Math.round(x.tot),x.buyers,Math.round(x.pen*100),x.lost,x.never].map(q).join(sep));
+  } else {
+    lines.push(['Kundnr','Kund','Ort','Totalt '+Y[yi],...D.categories].map(q).join(sep));
+    for (const r of custRows()) lines.push([r.nr,r.name,r.city,Math.round(r.tot),...D.categories.map((_,k)=>Math.round(m[r.c][k][yi]))].map(q).join(sep));
+  }
+  const blob = new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`gap-${S.tab}-${Y[yi]}-${S.mode}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+// --- init ---
+document.getElementById('sub').textContent = (D.company? D.company+' · ':'') + `${NC} kunder · ${NK} kategorier · ${Y[0]}–${Y[NY-1]}`;
+document.getElementById('gen').textContent = 'Uppdaterad från Fortnox ' + D.generated;
+const ysel = document.getElementById('year');
+ysel.innerHTML = Y.map((y,i)=>`<option value="${i}" ${i===S.yi?'selected':''}>${y}${i===NY-1?' (i år)':''}</option>`).join('');
+ysel.onchange = e => { S.yi=+e.target.value; render(); };
+document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{ S.mode=b.dataset.v; document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x===b)); render(); });
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{ S.tab=b.dataset.t; document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b)); render(); });
+let qt; document.getElementById('q').oninput = e => { clearTimeout(qt); qt=setTimeout(()=>{ S.q=e.target.value; render(); },150); };
+document.getElementById('filter').onchange = e => { S.filter=e.target.value; render(); };
+document.getElementById('hideEmpty').onchange = e => { S.hideEmpty=e.target.checked; render(); };
+document.getElementById('showInactive').onchange = e => { S.showInactive=e.target.checked; render(); };
+document.getElementById('csv').onclick = csv;
+document.getElementById('ov').onclick = closeDrawer;
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeDrawer(); });
+document.getElementById('view').addEventListener('click', e => {
+  const th = e.target.closest('th[data-s]');
+  if (th){ const s = th.dataset.s; const col = isNaN(+s) ? s : +s;
+    S.sort = S.sort.col===col ? {col, dir:-S.sort.dir} : {col, dir: col==='name'?1:-1}; render(); return; }
+  const td = e.target.closest('td.c'); if (td) openDrawer(+td.dataset.c, +td.dataset.k);
+});
+render();
+
+// Live-läge: kolla efter ny data varje minut och ladda om när den finns (inte mitt i en detaljvy)
+if (LIVE) {
+  document.getElementById('gen').textContent = 'Live från Fortnox · uppdaterad ' + D.generated;
+  let pending = false;
+  const reload = () => { if (!document.getElementById('drawer').classList.contains('on')) location.reload(); else pending = true; };
+  document.getElementById('ov').addEventListener('click', () => pending && location.reload());
+  setInterval(async () => {
+    try { const r = await fetch('/version', {cache:'no-store'}); const v = (await r.json()).version;
+      if (v && v !== D.generated) reload(); } catch (e) {}
+  }, 60000);
+}
+</script>
+</body>
+</html>
